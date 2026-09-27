@@ -1,0 +1,10 @@
+infra:
+  terraform-version: "1.14.9"
+  working-path: terraform-aws
+
+environments:
+  dev:
+    # Documental — o deploy real lê o ARN de vars.AWS_ROLE_ARN do GitHub Environment.
+    role-arn: arn:aws:iam::000000000000:role/REPLACE_WITH_DEV_ROLE
+  prod:
+    role-arn: arn:aws:iam::000000000000:role/REPLACE_WITH_PROD_ROLE

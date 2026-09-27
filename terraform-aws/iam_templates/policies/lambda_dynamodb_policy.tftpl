@@ -1,0 +1,14 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TableAccess",
+      "Effect": "Allow",
+      "Action": ${actions},
+      "Resource": [
+        "${table_arn}",
+        "${table_arn}/index/*"
+      ]
+    }
+  ]
+}
