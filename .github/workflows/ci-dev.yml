@@ -1,0 +1,33 @@
+name: CI Dev
+
+on:
+  pull_request:
+    branches: [dev]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  pr:
+    uses: MegaMixDistribuidora/shd-github-actions-workflows/.github/workflows/pr-validation.yml@v1.1.0
+
+  python-tests:
+    needs: pr
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: pytest --cov=service_template --cov-fail-under=80
+
+# TODO: este template não tem GitHub Environments nem conta AWS reais, então
+# fica só com pr-validation + testes. Um serviço novo deve adicionar de volta
+# o job de CI de infraestrutura (Terraform) chamando
+# shd-github-actions-workflows/.github/workflows/ci-infra-terraform.yml, e os
+# workflows Deploy Dev/Deploy Prod (push em dev/main chamando
+# cd-infra-terraform.yml) — veja aws-megamix-app-lbd-catalog-service para o
+# exemplo completo, uma vez que as Environments dev/prod estiverem
+# configuradas (ADR-08, .pipeline.yml).

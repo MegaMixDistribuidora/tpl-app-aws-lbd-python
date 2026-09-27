@@ -1,0 +1,27 @@
+name: CI Prod
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  pr:
+    uses: MegaMixDistribuidora/shd-github-actions-workflows/.github/workflows/pr-validation.yml@v1.1.0
+
+  python-tests:
+    needs: pr
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: pytest --cov=service_template --cov-fail-under=80
+
+# TODO: veja o TODO equivalente em ci-dev.yml — este template não roda o CI
+# de infraestrutura por não ter conta AWS/Environment reais.

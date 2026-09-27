@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+dist/
+.superpowers/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+crash.log
+tfplan
+*.tfvars
+
+!terraform-aws/environments/*.tfvars
