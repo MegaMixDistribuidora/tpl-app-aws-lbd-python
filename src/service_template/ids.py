@@ -6,7 +6,7 @@ import uuid
 
 
 def new_id() -> str:
-    """UUIDv7 (RFC 9562, ADR-23): 48 bits de milissegundos seguidos de bits aleatórios."""
+    """UUIDv7 (RFC 9562): 48 bits de milissegundos seguidos de bits aleatórios."""
     millis = time.time_ns() // 1_000_000
     rand = int.from_bytes(os.urandom(10), "big")
     rand_a = rand >> 68
