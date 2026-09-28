@@ -2,13 +2,17 @@ import os
 import re
 import time
 import unicodedata
-
-_CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+import uuid
 
 
 def new_id() -> str:
-    value = (int(time.time() * 1000) << 80) | int.from_bytes(os.urandom(10), "big")
-    return "".join(_CROCKFORD[(value >> (5 * i)) & 31] for i in reversed(range(26)))
+    """UUIDv7 (RFC 9562, ADR-23): 48 bits de milissegundos seguidos de bits aleatórios."""
+    millis = time.time_ns() // 1_000_000
+    rand = int.from_bytes(os.urandom(10), "big")
+    rand_a = rand >> 68
+    rand_b = rand & ((1 << 62) - 1)
+    value = (millis << 80) | (0x7 << 76) | (rand_a << 64) | (0b10 << 62) | rand_b
+    return str(uuid.UUID(int=value))
 
 
 def slugify(text: str) -> str:
