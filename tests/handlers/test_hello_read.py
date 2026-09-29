@@ -28,7 +28,7 @@ def table(monkeypatch):
 def test_get_hello_returns_item_without_internal_keys(table, lambda_context, assert_no_internal_keys):
     table.put_item(Item={"PK": "HELLO#1", "SK": "META", "id": "1", "name": "Mundo"})
 
-    response = hello_read.handler(http_event("GET", "/hello/1"), lambda_context)
+    response = hello_read.handler(http_event("GET", "/hello/1", groups="Vendedor"), lambda_context)
 
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
@@ -37,5 +37,11 @@ def test_get_hello_returns_item_without_internal_keys(table, lambda_context, ass
 
 
 def test_get_hello_returns_404_when_missing(table, lambda_context):
-    response = hello_read.handler(http_event("GET", "/hello/missing"), lambda_context)
+    response = hello_read.handler(http_event("GET", "/hello/missing", groups="Vendedor"), lambda_context)
     assert response["statusCode"] == 404
+
+
+def test_get_hello_without_staff_group_returns_403(table, lambda_context):
+    response = hello_read.handler(http_event("GET", "/hello/1"), lambda_context)
+
+    assert response["statusCode"] == 403

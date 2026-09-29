@@ -26,8 +26,8 @@ próprio arquivo. Ordem sugerida:
    acesso reais) e `terraform-aws/iam.tf` (funções Lambda reais, e a fonte do
    módulo `iam-role` — veja o `TODO` lá, `shd-terraform-aws-modules` ainda não
    publica esse módulo).
-3. **Rotas** — `terraform-aws/api.tf` (prefixo de rota da API compartilhada,
-   ADR-03) e `terraform-aws/lambda.tf` (nome do zip).
+3. **Rotas** — `terraform-aws/api.tf` (prefixo de rota na API do portal,
+   `megamix-admin-api`, ADR-03) e `terraform-aws/lambda.tf` (nome do zip).
 4. **Handler de exemplo** — `src/service_template/handlers/hello_read.py` e
    `hello_write.py` mostram o padrão ponta a ponta (rota → autorização de
    grupo → validação → acesso à tabela → resposta HTTP → evento de domínio).
