@@ -27,7 +27,7 @@ resource "aws_lambda_function" "function" {
   architectures = [local.lambda_architecture]
   layers        = [local.powertools_layer_arn]
   timeout       = 10
-  memory_size   = 256
+  memory_size   = 128
 
   filename         = data.archive_file.service.output_path
   source_code_hash = data.archive_file.service.output_base64sha256
@@ -37,15 +37,13 @@ resource "aws_lambda_function" "function" {
   }
 
   environment {
-    variables = merge(
-      {
-        TABLE_NAME                   = aws_dynamodb_table.table.name
-        POWERTOOLS_SERVICE_NAME      = local.service
-        POWERTOOLS_METRICS_NAMESPACE = "MegaMix"
-        LOG_LEVEL                    = "INFO"
-      },
-      each.value.access == "write" ? { EVENT_BUS_NAME = data.aws_ssm_parameter.event_bus_name.insecure_value } : {}
-    )
+    variables = {
+      TABLE_NAME                   = aws_dynamodb_table.table.name
+      EVENT_BUS_NAME               = data.aws_ssm_parameter.event_bus_name.insecure_value
+      POWERTOOLS_SERVICE_NAME      = local.service
+      POWERTOOLS_METRICS_NAMESPACE = "MegaMix"
+      LOG_LEVEL                    = "INFO"
+    }
   }
 
   depends_on = [aws_cloudwatch_log_group.lambda]
