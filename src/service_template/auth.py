@@ -35,10 +35,14 @@ def actor_id(event: dict) -> str:
     return uid
 
 
+# O header vem do cliente; o limite impede que ele infle auditoria e eventos.
+MAX_CORRELATION_ID_LENGTH = 128
+
+
 def correlation_id(event: dict) -> str:
-    """Header `x-correlation-id` (sem diferenciar maiúsculas) ou, na falta, o
-    `requestContext.requestId` do API Gateway (ADR-18)."""
+    """Header `x-correlation-id` (sem diferenciar maiúsculas), cortado em 128 caracteres,
+    ou, na falta, o `requestContext.requestId` do API Gateway (ADR-18)."""
     for name, value in (event.get("headers") or {}).items():
         if name.lower() == "x-correlation-id" and value:
-            return value
+            return value[:MAX_CORRELATION_ID_LENGTH]
     return event.get("requestContext", {}).get("requestId", "")

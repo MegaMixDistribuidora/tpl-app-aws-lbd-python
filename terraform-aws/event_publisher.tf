@@ -97,9 +97,12 @@ resource "aws_lambda_event_source_mapping" "outbox_stream" {
   }
 
   # Registro com falha é retentado a partir dele (consumidores são idempotentes
-  # por `id`); esgotadas as tentativas, a referência vai para a DLQ.
-  function_response_types = ["ReportBatchItemFailures"]
-  maximum_retry_attempts  = 10
+  # por `id`) até completar 6 h, para atravessar uma indisponibilidade do bus.
+  # Depois disso a DLQ recebe só a referência (shard e sequência); o item EVENT#
+  # continua na tabela até o TTL (48 h) para ser republicado.
+  function_response_types       = ["ReportBatchItemFailures"]
+  maximum_retry_attempts        = -1
+  maximum_record_age_in_seconds = 21600
 
   destination_config {
     on_failure {

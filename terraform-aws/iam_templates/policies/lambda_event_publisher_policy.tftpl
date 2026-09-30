@@ -4,7 +4,7 @@
     {
       "Sid": "ReadOutboxStream",
       "Effect": "Allow",
-      "Action": ["dynamodb:DescribeStream", "dynamodb:GetRecords", "dynamodb:GetShardIterator", "dynamodb:ListStreams"],
+      "Action": ["dynamodb:DescribeStream", "dynamodb:GetRecords", "dynamodb:GetShardIterator"],
       "Resource": "${stream_arn}"
     },
     {

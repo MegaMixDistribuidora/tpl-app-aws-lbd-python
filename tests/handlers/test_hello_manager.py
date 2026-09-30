@@ -25,6 +25,7 @@ def tables(monkeypatch):
     with mock_aws():
         monkeypatch.setenv("TABLE_NAME", "test-table")
         monkeypatch.setenv("AUDIT_TABLE_NAME", "audit-table")
+        monkeypatch.setattr(hello_manager, "_client", None)
         client = boto3.client("dynamodb", region_name="sa-east-1")
         _create_table(client, "test-table")
         _create_table(client, "audit-table")
@@ -90,6 +91,24 @@ def test_create_hello_without_uid_returns_403_and_writes_nothing(table, lambda_c
 
     assert response["statusCode"] == 403
     assert table.scan()["Items"] == []
+
+
+def test_create_hello_writes_nothing_when_the_audit_write_fails(table, lambda_context, monkeypatch):
+    monkeypatch.setenv("AUDIT_TABLE_NAME", "missing-audit-table")
+    event = http_event("POST", "/hello", body=json.dumps({"name": "Mundo"}), groups="Vendedor", uid="uid-1")
+
+    with pytest.raises(Exception):
+        hello_manager.handler(event, lambda_context)
+
+    assert table.scan()["Items"] == []
+
+
+def test_create_hello_checks_uid_before_the_body(table, lambda_context):
+    event = http_event("POST", "/hello", body=json.dumps({}), groups="Vendedor")
+
+    response = hello_manager.handler(event, lambda_context)
+
+    assert response["statusCode"] == 403
 
 
 def test_create_hello_rejects_body_without_name(table, lambda_context):

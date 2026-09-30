@@ -34,6 +34,16 @@ def _table():
     return boto3.resource("dynamodb").Table(os.environ["TABLE_NAME"])
 
 
+_client = None
+
+
+def _dynamodb_client():
+    global _client
+    if _client is None:
+        _client = boto3.client("dynamodb")
+    return _client
+
+
 # TODO: uma função por recurso, com leitura e escrita juntas. É só um ponto de
 # partida:
 # - troque "hello"/"Hello"/"HELLO#" pelo nome real da entidade — em
@@ -60,18 +70,18 @@ def get_hello(id: str):
 
 @app.post("/hello")
 def create_hello():
-    require_group(app.current_event.raw_event, allowed_groups=["Vendedor", "Administrador"])
-    body = validation.require_object(parse_body(app.current_event.raw_event))
-    name = validation.required_str(body, "name")
     raw_event = app.current_event.raw_event
+    require_group(raw_event, allowed_groups=["Vendedor", "Administrador"])
     actor, correlation = actor_id(raw_event), correlation_id(raw_event)
+    body = validation.require_object(parse_body(raw_event))
+    name = validation.required_str(body, "name")
     id = new_id()
     item = {"PK": f"HELLO#{id}", "SK": "META", "id": id, "name": name}
     result = strip_internal_keys(item)
     table_name = os.environ["TABLE_NAME"]
     # Entidade, auditoria (ADR-16) e evento (ADR-27) na mesma transação: não há
     # alteração sem registro nem evento sem alteração.
-    boto3.client("dynamodb").transact_write_items(
+    _dynamodb_client().transact_write_items(
         TransactItems=[
             {"Put": {"TableName": table_name, "Item": item_to_dynamo(item), "ConditionExpression": "attribute_not_exists(PK)"}},
             audit_put(
