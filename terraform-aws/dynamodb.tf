@@ -36,6 +36,16 @@ resource "aws_dynamodb_table" "table" {
     projection_type = "ALL"
   }
 
+  # O Stream serve só à função event-publisher (outbox, ADR-27); o TTL apaga os
+  # itens de evento depois de publicados.
+  stream_enabled   = true
+  stream_view_type = "NEW_IMAGE"
+
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+
   point_in_time_recovery {
     enabled = true
   }

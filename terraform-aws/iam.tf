@@ -14,6 +14,10 @@ locals {
   }
 
   function_names = { for key, _ in local.lambda_functions : key => "${local.product}-${local.service}-${key}" }
+
+  # TODO: troque "hello#*" pelos prefixos das entidades do serviço na tabela
+  # `audit` (nome de entidade é único na plataforma, ADR-16).
+  audit_leading_keys = jsonencode(["hello#*"])
 }
 
 module "lambda_role" {
@@ -50,10 +54,11 @@ module "lambda_role" {
       })
     },
     {
-      name        = "${local.service}-${each.key}-events"
-      description = "Publicação de eventos de domínio"
-      document = templatefile("${path.module}/iam_templates/policies/lambda_events_policy.tftpl", {
-        event_bus_arn = data.aws_ssm_parameter.event_bus_arn.insecure_value
+      name        = "${local.service}-${each.key}-audit"
+      description = "Gravação de auditoria das ações de staff"
+      document = templatefile("${path.module}/iam_templates/policies/lambda_audit_policy.tftpl", {
+        audit_table_arn = data.aws_ssm_parameter.audit_table_arn.insecure_value
+        leading_keys    = local.audit_leading_keys
       })
     }
   ]

@@ -7,10 +7,12 @@ from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from service_template import validation
-from service_template.auth import require_group
+from service_template.audit import audit_put, diff
+from service_template.auth import actor_id, correlation_id, require_group
 from service_template.dynamo import strip_internal_keys
+from service_template.dynamo_format import item_to_dynamo
 from service_template.errors import DomainError, NotFoundError
-from service_template.events import publish_admin_action, publish_event
+from service_template.outbox import event_put
 from service_template.http import api_error_response, api_response, parse_body
 from service_template.ids import new_id
 from service_template.observability import logger, metrics, tracer
@@ -32,6 +34,16 @@ def _table():
     return boto3.resource("dynamodb").Table(os.environ["TABLE_NAME"])
 
 
+_client = None
+
+
+def _dynamodb_client():
+    global _client
+    if _client is None:
+        _client = boto3.client("dynamodb")
+    return _client
+
+
 # TODO: uma função por recurso, com leitura e escrita juntas. É só um ponto de
 # partida:
 # - troque "hello"/"Hello"/"HELLO#" pelo nome real da entidade — em
@@ -42,7 +54,10 @@ def _table():
 # - se a entidade precisar de slug/SKU únicos, troque o put_item direto por um
 #   repository.py com o padrão de itens-ponteiro em TransactWriteItems (ver
 #   aws-megamix-app-lbd-catalog-service/docs/superpowers/specs);
-# - troque "HelloCreated" pelo evento de domínio real (arquitetura.md §4).
+# - troque "HelloCreated" pelo evento de domínio real (arquitetura.md §4), ou
+#   tire o `event_put` se ninguém consome o fato (ADR-27);
+# - troque a entidade "hello" da auditoria pelo nome real, o mesmo do
+#   `dynamodb:LeadingKeys` em terraform-aws/iam.tf (ADR-16).
 @app.get("/hello/<id>")
 def get_hello(id: str):
     require_group(app.current_event.raw_event, allowed_groups=["Vendedor", "Administrador"])
@@ -55,17 +70,32 @@ def get_hello(id: str):
 
 @app.post("/hello")
 def create_hello():
-    require_group(app.current_event.raw_event, allowed_groups=["Vendedor", "Administrador"])
-    body = validation.require_object(parse_body(app.current_event.raw_event))
+    raw_event = app.current_event.raw_event
+    require_group(raw_event, allowed_groups=["Vendedor", "Administrador"])
+    actor, correlation = actor_id(raw_event), correlation_id(raw_event)
+    body = validation.require_object(parse_body(raw_event))
     name = validation.required_str(body, "name")
     id = new_id()
     item = {"PK": f"HELLO#{id}", "SK": "META", "id": id, "name": name}
-    _table().put_item(Item=item)
     result = strip_internal_keys(item)
-    publish_admin_action(
-        app.current_event.raw_event, entity="hello", entity_id=id, action="created", before=None, after=result
+    table_name = os.environ["TABLE_NAME"]
+    # Entidade, auditoria (ADR-16) e evento (ADR-27) na mesma transação: não há
+    # alteração sem registro nem evento sem alteração.
+    _dynamodb_client().transact_write_items(
+        TransactItems=[
+            {"Put": {"TableName": table_name, "Item": item_to_dynamo(item), "ConditionExpression": "attribute_not_exists(PK)"}},
+            audit_put(
+                os.environ["AUDIT_TABLE_NAME"],
+                entity="hello",
+                entity_id=id,
+                action="created",
+                actor_id=actor,
+                correlation_id=correlation,
+                changes=diff(None, result),
+            ),
+            event_put(table_name, "HelloCreated", {"helloId": id}, correlation_id=correlation),
+        ]
     )
-    publish_event("HelloCreated", result)
     return api_response(201, result)
 
 

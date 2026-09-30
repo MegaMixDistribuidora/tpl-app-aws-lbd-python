@@ -5,7 +5,7 @@ locals {
   repository = "github.com/${local.organization}/TODO-nome-do-repositorio"
   # TODO: nome curto do serviço (ex.: "catalog"). Usado no nome dos recursos
   # (tabela, funções Lambda, roles) e nas tags — mantenha consistente com
-  # observability.py e events.py.
+  # observability.py e handlers/event_publisher.py.
   service = "TODO-nome-do-servico"
 
   lambda_architecture = "arm64"
