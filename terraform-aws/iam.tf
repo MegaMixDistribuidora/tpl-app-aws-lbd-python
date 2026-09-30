@@ -3,6 +3,7 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 locals {
+  # TODO: deixe só as ações que os handlers reais usam (ADR-24).
   table_actions = jsonencode(["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:ConditionCheckItem"])
 
   # TODO: troque pelas funções reais do serviço (chave curta => módulo Python
