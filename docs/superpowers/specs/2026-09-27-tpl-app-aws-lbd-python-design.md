@@ -54,7 +54,7 @@ Do `aws-megamix-app-lbd-catalog-service`:
 | `src/catalog_service/observability.py` | idem | nome do serviço vira `TODO` |
 | `src/catalog_service/events.py` | idem | `strip_internal_keys`/`normalize_number` migram para `dynamo.py` (não dependem de domínio); `Source` do evento vira `TODO` |
 | `src/catalog_service/validation.py` | idem | só os helpers primitivos (`require_object`, `required_str`, `optional_str`, `optional_id`, `slug`); os `*_fields` de produto/categoria/marca ficam de fora |
-| `src/catalog_service/handlers/brands_{read,write}.py` | `handlers/hello_{read,write}.py` | vira o exemplo ponta a ponta: rota → autorização de grupo → validação → acesso à tabela (`boto3` direto, sem `repository.py`) → resposta HTTP → evento de domínio |
+| `src/catalog_service/handlers/brands_{read,write}.py` | `handlers/hello_manager.py` | vira o exemplo ponta a ponta, uma função por recurso com leitura e escrita juntas: rota → autorização de grupo → validação → acesso à tabela (`boto3` direto, sem `repository.py`) → resposta HTTP → evento de domínio |
 | `tests/{conftest,test_http,test_ids,test_auth}.py` | idem | cópia/adaptação direta |
 | `tests/test_observability.py`, `test_events.py` | idem | adaptados ao nome genérico do serviço |
 | `tests/handlers/{api_events,test_brands_*}.py` | `tests/handlers/{api_events,test_hello_*}.py` | `api_events.py` cópia direta; testes do exemplo `hello` cobrindo o caminho feliz, 403 e 400 |

@@ -5,8 +5,8 @@ locals {
   # rotas reais; a chave do mapa aponta para local.lambda_functions. Na API do
   # portal toda rota usa o authorizer staff (ADR-03).
   staff_routes = {
-    "GET /hello/{id}" = "hello-read"
-    "POST /hello"     = "hello-write"
+    "GET /hello/{id}" = "hello-manager"
+    "POST /hello"     = "hello-manager"
   }
 }
 
