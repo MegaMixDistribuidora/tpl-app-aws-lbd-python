@@ -8,7 +8,7 @@ data "archive_file" "service" {
 }
 
 resource "aws_cloudwatch_log_group" "lambda" {
-  for_each = local.function_names
+  for_each = merge(local.function_names, { event-publisher = local.publisher_name })
 
   name              = "/aws/lambda/${each.value}"
   retention_in_days = 30
@@ -39,7 +39,7 @@ resource "aws_lambda_function" "function" {
   environment {
     variables = {
       TABLE_NAME                   = aws_dynamodb_table.table.name
-      EVENT_BUS_NAME               = data.aws_ssm_parameter.event_bus_name.insecure_value
+      AUDIT_TABLE_NAME             = data.aws_ssm_parameter.audit_table_name.insecure_value
       POWERTOOLS_SERVICE_NAME      = local.service
       POWERTOOLS_METRICS_NAMESPACE = "MegaMix"
       LOG_LEVEL                    = "INFO"

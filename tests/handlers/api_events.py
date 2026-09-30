@@ -5,7 +5,8 @@ def http_event(
     query: dict | None = None,
     body: str | None = None,
     groups: str | None = None,
-    sub: str | None = None,
+    uid: str | None = None,
+    headers: dict | None = None,
 ) -> dict:
     event = {
         "version": "2.0",
@@ -17,15 +18,15 @@ def http_event(
             "requestId": "test-request-id",
             "http": {"method": method, "path": path},
         },
-        "headers": {},
+        "headers": headers or {},
         "isBase64Encoded": False,
         "queryStringParameters": query,
         "body": body,
     }
-    if groups is not None or sub is not None:
+    if groups is not None or uid is not None:
         claims = {}
-        if sub is not None:
-            claims["sub"] = sub
+        if uid is not None:
+            claims["custom:uid"] = uid
         if groups is not None:
             claims["cognito:groups"] = groups
         event["requestContext"]["authorizer"] = {"jwt": {"claims": claims}}

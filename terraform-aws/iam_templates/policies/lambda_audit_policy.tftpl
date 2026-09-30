@@ -1,0 +1,16 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AuditWrite",
+      "Effect": "Allow",
+      "Action": "dynamodb:PutItem",
+      "Resource": "${audit_table_arn}",
+      "Condition": {
+        "ForAllValues:StringLike": {
+          "dynamodb:LeadingKeys": ${leading_keys}
+        }
+      }
+    }
+  ]
+}
