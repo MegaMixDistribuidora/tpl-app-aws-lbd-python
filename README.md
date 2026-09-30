@@ -28,9 +28,9 @@ próprio arquivo. Ordem sugerida:
    publica esse módulo).
 3. **Rotas** — `terraform-aws/api.tf` (prefixo de rota na API do portal,
    `megamix-admin-api`, ADR-03) e `terraform-aws/lambda.tf` (nome do zip).
-4. **Handler de exemplo** — `src/service_template/handlers/hello_read.py` e
-   `hello_write.py` mostram o padrão ponta a ponta (rota → autorização de
-   grupo → validação → acesso à tabela → resposta HTTP → evento de domínio).
+4. **Handler de exemplo** — `src/service_template/handlers/hello_manager.py`
+   (uma função por recurso, leitura e escrita juntas) mostra o padrão ponta a
+   ponta (rota → autorização de grupo → validação → acesso à tabela → resposta HTTP → evento de domínio).
    Substitua pela entidade real; se ela precisar de slug/SKU únicos, veja o
    padrão de itens-ponteiro em
    `aws-megamix-app-lbd-catalog-service/docs/superpowers/specs`.
