@@ -3,36 +3,38 @@ import json
 import boto3
 import pytest
 from moto import mock_aws
-from unittest.mock import MagicMock
 
-from service_template import events
 from service_template.handlers import hello_manager
 from handlers.api_events import http_event
 
 
+def _create_table(client, name: str) -> None:
+    client.create_table(
+        TableName=name,
+        KeySchema=[{"AttributeName": "PK", "KeyType": "HASH"}, {"AttributeName": "SK", "KeyType": "RANGE"}],
+        AttributeDefinitions=[
+            {"AttributeName": "PK", "AttributeType": "S"},
+            {"AttributeName": "SK", "AttributeType": "S"},
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
+
+
 @pytest.fixture
-def table(monkeypatch):
+def tables(monkeypatch):
     with mock_aws():
         monkeypatch.setenv("TABLE_NAME", "test-table")
-        monkeypatch.setenv("EVENT_BUS_NAME", "megamix-events")
+        monkeypatch.setenv("AUDIT_TABLE_NAME", "audit-table")
         client = boto3.client("dynamodb", region_name="sa-east-1")
-        client.create_table(
-            TableName="test-table",
-            KeySchema=[{"AttributeName": "PK", "KeyType": "HASH"}, {"AttributeName": "SK", "KeyType": "RANGE"}],
-            AttributeDefinitions=[
-                {"AttributeName": "PK", "AttributeType": "S"},
-                {"AttributeName": "SK", "AttributeType": "S"},
-            ],
-            BillingMode="PAY_PER_REQUEST",
-        )
-        yield boto3.resource("dynamodb", region_name="sa-east-1").Table("test-table")
+        _create_table(client, "test-table")
+        _create_table(client, "audit-table")
+        resource = boto3.resource("dynamodb", region_name="sa-east-1")
+        yield resource.Table("test-table"), resource.Table("audit-table")
 
 
-@pytest.fixture(autouse=True)
-def fake_events_client(monkeypatch):
-    fake_client = MagicMock()
-    monkeypatch.setattr(events, "_events_client", lambda: fake_client)
-    return fake_client
+@pytest.fixture
+def table(tables):
+    return tables[0]
 
 
 def test_create_hello_rejects_without_allowed_group(table, lambda_context):
@@ -41,9 +43,12 @@ def test_create_hello_rejects_without_allowed_group(table, lambda_context):
     assert response["statusCode"] == 403
 
 
-def test_create_hello_persists_item_and_publishes_events(table, lambda_context, fake_events_client, assert_no_internal_keys):
+def test_create_hello_writes_item_audit_and_event_in_one_transaction(tables, lambda_context, assert_no_internal_keys):
+    table, audit_table = tables
     body = json.dumps({"name": "Mundo"})
-    event = http_event("POST", "/hello", body=body, groups="Vendedor", sub="user-1")
+    event = http_event(
+        "POST", "/hello", body=body, groups="Vendedor", uid="uid-1", headers={"X-Correlation-Id": "corr-1"}
+    )
 
     response = hello_manager.handler(event, lambda_context)
 
@@ -55,12 +60,40 @@ def test_create_hello_persists_item_and_publishes_events(table, lambda_context, 
     stored = table.get_item(Key={"PK": f"HELLO#{created['id']}", "SK": "META"}).get("Item")
     assert stored["name"] == "Mundo"
 
-    published = [call.kwargs["Entries"][0]["DetailType"] for call in fake_events_client.put_events.call_args_list]
-    assert published == ["AdminActionPerformed", "HelloCreated"]
+    outbox_items = [item for item in table.scan()["Items"] if item["PK"].startswith("EVENT#")]
+    assert len(outbox_items) == 1
+    assert outbox_items[0]["detailType"] == "HelloCreated"
+    assert outbox_items[0]["data"] == {"helloId": created["id"]}
+    assert outbox_items[0]["correlationId"] == "corr-1"
+
+    audit_items = audit_table.scan()["Items"]
+    assert len(audit_items) == 1
+    assert audit_items[0]["PK"] == f"hello#{created['id']}"
+    assert audit_items[0]["actorId"] == "uid-1"
+    assert audit_items[0]["correlationId"] == "corr-1"
+    assert audit_items[0]["changes"]["name"] == {"after": "Mundo"}
+
+
+def test_create_hello_uses_request_id_when_there_is_no_correlation_header(table, lambda_context):
+    event = http_event("POST", "/hello", body=json.dumps({"name": "Mundo"}), groups="Vendedor", uid="uid-1")
+
+    hello_manager.handler(event, lambda_context)
+
+    outbox_items = [item for item in table.scan()["Items"] if item["PK"].startswith("EVENT#")]
+    assert outbox_items[0]["correlationId"] == "test-request-id"
+
+
+def test_create_hello_without_uid_returns_403_and_writes_nothing(table, lambda_context):
+    event = http_event("POST", "/hello", body=json.dumps({"name": "Mundo"}), groups="Vendedor")
+
+    response = hello_manager.handler(event, lambda_context)
+
+    assert response["statusCode"] == 403
+    assert table.scan()["Items"] == []
 
 
 def test_create_hello_rejects_body_without_name(table, lambda_context):
-    event = http_event("POST", "/hello", body=json.dumps({}), groups="Vendedor")
+    event = http_event("POST", "/hello", body=json.dumps({}), groups="Vendedor", uid="uid-1")
     response = hello_manager.handler(event, lambda_context)
     assert response["statusCode"] == 400
 

@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadOutboxStream",
+      "Effect": "Allow",
+      "Action": ["dynamodb:DescribeStream", "dynamodb:GetRecords", "dynamodb:GetShardIterator", "dynamodb:ListStreams"],
+      "Resource": "${stream_arn}"
+    },
+    {
+      "Sid": "PublishDomainEvents",
+      "Effect": "Allow",
+      "Action": "events:PutEvents",
+      "Resource": "${event_bus_arn}"
+    },
+    {
+      "Sid": "SendFailuresToDlq",
+      "Effect": "Allow",
+      "Action": "sqs:SendMessage",
+      "Resource": "${dlq_arn}"
+    }
+  ]
+}

@@ -19,8 +19,8 @@ Todo ponto que precisa ser trocado ou completado está marcado com `TODO` no
 próprio arquivo. Ordem sugerida:
 
 1. **Nome do serviço** — `terraform-aws/locals.tf` (`service`, `repository`),
-   `src/service_template/observability.py` e `src/service_template/events.py`
-   (`EVENT_SOURCE`). Considere também renomear o pacote `service_template`
+   `src/service_template/observability.py` e
+   `src/service_template/handlers/event_publisher.py` (`EVENT_SOURCE`). Considere também renomear o pacote `service_template`
    para o nome real do serviço (ajuste os imports em todos os arquivos).
 2. **Tabela e IAM** — `terraform-aws/dynamodb.tf` (GSIs conforme os padrões de
    acesso reais) e `terraform-aws/iam.tf` (funções Lambda reais, e a fonte do
@@ -30,8 +30,12 @@ próprio arquivo. Ordem sugerida:
    `megamix-admin-api`, ADR-03) e `terraform-aws/lambda.tf` (nome do zip).
 4. **Handler de exemplo** — `src/service_template/handlers/hello_manager.py`
    (uma função por recurso, leitura e escrita juntas) mostra o padrão ponta a
-   ponta (rota → autorização de grupo → validação → acesso à tabela → resposta HTTP → evento de domínio).
-   Substitua pela entidade real; se ela precisar de slug/SKU únicos, veja o
+   ponta (rota → autorização de grupo → validação → entidade, auditoria e
+   evento de domínio numa só transação → resposta HTTP). O evento sai pelo
+   outbox (ADR-27): a função `event-publisher` (`terraform-aws/event_publisher.tf`)
+   lê o Stream da tabela e publica no bus; nenhum handler chama o EventBridge.
+   Substitua pela entidade real, com o prefixo dela na auditoria
+   (`audit_leading_keys` em `terraform-aws/iam.tf`, ADR-16); se ela precisar de slug/SKU únicos, veja o
    padrão de itens-ponteiro em
    `aws-megamix-app-lbd-catalog-service/docs/superpowers/specs`.
 5. **Contas AWS** — `terraform-aws/environments/dev.tfvars` e `prod.tfvars`.

@@ -20,3 +20,25 @@ def require_group(event: dict, allowed_groups: list[str]) -> None:
     caller_groups = _parse_groups(raw_groups)
     if not caller_groups.intersection(allowed_groups):
         raise ForbiddenError("grupo insuficiente para esta operação")
+
+
+def _claims(event: dict) -> dict:
+    return event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {})
+
+
+def actor_id(event: dict) -> str:
+    """Autor da escrita: claim `custom:uid` do token de staff (ADR-16, ADR-23).
+    Ausente (usuário Cognito sem staff vinculado) → 403."""
+    uid = _claims(event).get("custom:uid")
+    if not uid:
+        raise ForbiddenError("Recarregue a página e tente de novo.")
+    return uid
+
+
+def correlation_id(event: dict) -> str:
+    """Header `x-correlation-id` (sem diferenciar maiúsculas) ou, na falta, o
+    `requestContext.requestId` do API Gateway (ADR-18)."""
+    for name, value in (event.get("headers") or {}).items():
+        if name.lower() == "x-correlation-id" and value:
+            return value
+    return event.get("requestContext", {}).get("requestId", "")
