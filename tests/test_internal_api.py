@@ -131,3 +131,21 @@ def test_timeout_passed_to_transport():
     client, t = make(ok())
     client.request("GET", "/p")
     assert t.calls[0][1] == 3.0
+
+
+def test_query_encodes_space_as_percent20_and_signs_same_url(monkeypatch):
+    from botocore.auth import SigV4Auth
+
+    signed_urls = []
+    original = SigV4Auth.add_auth
+
+    def spy(self, request):
+        signed_urls.append(request.url)
+        return original(self, request)
+
+    monkeypatch.setattr(SigV4Auth, "add_auth", spy)
+    client, t = make(ok())
+    client.request("GET", "/p", query={"q": "a b/c,d"})
+    sent = t.calls[0][0].full_url
+    assert sent.endswith("?q=a%20b%2Fc%2Cd")
+    assert signed_urls == [sent]

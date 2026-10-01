@@ -46,7 +46,10 @@ próprio arquivo. Ordem sugerida:
    serviço expõe, `AWS_IAM`) e `internal_api_calls` (rotas de outros serviços
    que ele chama, gera o `execute-api:Invoke`); em
    `terraform-aws/event_consumers.tf`, `event_consumers` (regra → fila SQS com
-   DLQ e alarme → função). Os três mapas começam vazios.
+   DLQ e alarme → função). Os três mapas começam vazios. O serviço criado a partir do template exige que
+   a plataforma já tenha publicado `/megamix/apigw/internal/api/{id,execution-arn,endpoint}`
+   no SSM antes do primeiro `plan` (senão `ParameterNotFound`): ordem de deploy
+   plataforma → serviços.
 6. **Contas AWS** — `terraform-aws/environments/dev.tfvars` e `prod.tfvars`.
 
 Nenhuma dessas convenções é repetida aqui além do necessário para orientar a

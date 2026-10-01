@@ -64,7 +64,7 @@ class InternalApiClient:
     ) -> dict | None:
         url = self._endpoint.rstrip("/") + "/" + path.lstrip("/")
         if query:
-            url += "?" + urllib.parse.urlencode(query)
+            url += "?" + urllib.parse.urlencode(query, quote_via=urllib.parse.quote)
         data = json.dumps(body).encode() if body is not None else None
 
         status, payload = self._send_with_retry(method, url, data, correlation_id)

@@ -26,7 +26,7 @@ data "aws_ssm_parameter" "event_bus_arn" {
   name = "/megamix/eventbridge/megamix-events/arn"
 }
 
-# API interna (AWS_IAM): chamadas serviço a serviço (ADR-31).
+# API interna (AWS_IAM): chamadas serviço a serviço (ADR-29).
 data "aws_ssm_parameter" "internal_api_id" {
   name = "/megamix/apigw/internal/api/id"
 }

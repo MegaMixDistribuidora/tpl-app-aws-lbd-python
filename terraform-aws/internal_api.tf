@@ -1,4 +1,4 @@
-# API interna (AWS_IAM, ADR-31): rotas que este serviço expõe a outros serviços
+# API interna (AWS_IAM, ADR-29): rotas que este serviço expõe a outros serviços
 # e chamadas que ele faz às rotas de outros serviços.
 
 locals {
