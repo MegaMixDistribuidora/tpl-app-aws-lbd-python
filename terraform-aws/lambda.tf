@@ -26,7 +26,7 @@ resource "aws_lambda_function" "function" {
   runtime       = "python3.12"
   architectures = [local.lambda_architecture]
   layers        = [local.powertools_layer_arn]
-  timeout       = 10
+  timeout       = local.lambda_timeout
   memory_size   = 128
 
   filename         = data.archive_file.service.output_path

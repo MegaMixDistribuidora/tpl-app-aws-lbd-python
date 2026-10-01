@@ -21,6 +21,24 @@ locals {
   }
 }
 
+# Falha cedo, com mensagem clara, se um mapa aponta para função inexistente.
+resource "terraform_data" "function_keys_check" {
+  lifecycle {
+    precondition {
+      condition     = alltrue([for _, c in local.event_consumers : contains(keys(local.lambda_functions), c.function)])
+      error_message = "event_consumers: `function` precisa ser uma chave de local.lambda_functions."
+    }
+    precondition {
+      condition     = alltrue([for _, fn in local.internal_routes : contains(keys(local.lambda_functions), fn)])
+      error_message = "internal_routes: o valor precisa ser uma chave de local.lambda_functions."
+    }
+    precondition {
+      condition     = alltrue([for fn, _ in local.internal_api_calls : contains(keys(local.lambda_functions), fn)])
+      error_message = "internal_api_calls: a chave precisa ser uma chave de local.lambda_functions."
+    }
+  }
+}
+
 resource "aws_sqs_queue" "event_consumer_dlq" {
   for_each = local.event_consumers
 
@@ -34,14 +52,18 @@ resource "aws_sqs_queue" "event_consumer_dlq" {
 resource "aws_sqs_queue" "event_consumer" {
   for_each = local.event_consumers
 
-  name                       = "${local.product}-${local.service}-${each.key}"
-  sqs_managed_sse_enabled    = true
-  visibility_timeout_seconds = 60
+  name                    = "${local.product}-${local.service}-${each.key}"
+  sqs_managed_sse_enabled = true
+  # Precisa ser >= timeout da função consumidora; 6x é a recomendação da AWS.
+  # Usa local.lambda_timeout (não o recurso) para não criar ciclo com a role.
+  visibility_timeout_seconds = max(60, local.lambda_timeout * 6)
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.event_consumer_dlq[each.key].arn
     maxReceiveCount     = 3
   })
+
+  depends_on = [terraform_data.function_keys_check]
 
   tags = local.tags
 }

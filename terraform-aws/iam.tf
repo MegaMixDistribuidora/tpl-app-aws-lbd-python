@@ -13,6 +13,9 @@ locals {
     hello-manager = { module = "hello_manager" }
   }
 
+  # Timeout das funções (s); a fila de cada consumidor deriva dele.
+  lambda_timeout = 10
+
   function_names = { for key, _ in local.lambda_functions : key => "${local.product}-${local.service}-${key}" }
 
   # TODO: troque "hello#*" pelos prefixos das entidades do serviço na tabela
