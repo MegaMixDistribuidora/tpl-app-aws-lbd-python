@@ -13,6 +13,9 @@ locals {
     hello-manager = { module = "hello_manager" }
   }
 
+  # Timeout das funções (s); a fila de cada consumidor deriva dele.
+  lambda_timeout = 10
+
   function_names = { for key, _ in local.lambda_functions : key => "${local.product}-${local.service}-${key}" }
 
   # TODO: troque "hello#*" pelos prefixos das entidades do serviço na tabela
@@ -35,33 +38,55 @@ module "lambda_role" {
   role_name                   = "${local.service}-${each.key}-role"
   assume_role_policy_document = file("${path.module}/iam_templates/roles/lambda_assume_role.tftpl")
 
-  policies = [
-    {
-      name        = "${local.service}-${each.key}-basic-execution"
-      description = "Permissões padrão de execução (logs), comuns a toda função Lambda"
-      document = templatefile("${path.module}/iam_templates/policies/lambda_basic_execution_policy.tftpl", {
-        region        = data.aws_region.current.region
-        account_id    = data.aws_caller_identity.current.account_id
-        function_name = local.function_names[each.key]
-      })
-    },
-    {
-      name        = "${local.service}-${each.key}-dynamodb"
-      description = "Acesso à tabela ${local.service}"
-      document = templatefile("${path.module}/iam_templates/policies/lambda_dynamodb_policy.tftpl", {
-        actions   = local.table_actions
-        table_arn = aws_dynamodb_table.table.arn
-      })
-    },
-    {
-      name        = "${local.service}-${each.key}-audit"
-      description = "Gravação de auditoria das ações de staff"
-      document = templatefile("${path.module}/iam_templates/policies/lambda_audit_policy.tftpl", {
-        audit_table_arn = data.aws_ssm_parameter.audit_table_arn.insecure_value
-        leading_keys    = local.audit_leading_keys
-      })
-    }
-  ]
+  policies = concat(
+    [
+      {
+        name        = "${local.service}-${each.key}-basic-execution"
+        description = "Permissões padrão de execução (logs), comuns a toda função Lambda"
+        document = templatefile("${path.module}/iam_templates/policies/lambda_basic_execution_policy.tftpl", {
+          region        = data.aws_region.current.region
+          account_id    = data.aws_caller_identity.current.account_id
+          function_name = local.function_names[each.key]
+        })
+      },
+      {
+        name        = "${local.service}-${each.key}-dynamodb"
+        description = "Acesso à tabela ${local.service}"
+        document = templatefile("${path.module}/iam_templates/policies/lambda_dynamodb_policy.tftpl", {
+          actions   = local.table_actions
+          table_arn = aws_dynamodb_table.table.arn
+        })
+      },
+      {
+        name        = "${local.service}-${each.key}-audit"
+        description = "Gravação de auditoria das ações de staff"
+        document = templatefile("${path.module}/iam_templates/policies/lambda_audit_policy.tftpl", {
+          audit_table_arn = data.aws_ssm_parameter.audit_table_arn.insecure_value
+          leading_keys    = local.audit_leading_keys
+        })
+      }
+    ],
+    # Chamadas a outros serviços pela API interna (internal_api.tf).
+    contains(keys(local.internal_api_resources), each.key) ? [
+      {
+        name        = "${local.service}-${each.key}-internal-api"
+        description = "Chamadas à API interna (execute-api:Invoke)"
+        document = templatefile("${path.module}/iam_templates/policies/lambda_internal_api_policy.tftpl", {
+          resources = jsonencode(local.internal_api_resources[each.key])
+        })
+      }
+    ] : [],
+    # Consumo das filas de eventos (event_consumers.tf).
+    contains(keys(local.consumer_queue_arns), each.key) ? [
+      {
+        name        = "${local.service}-${each.key}-sqs-consumer"
+        description = "Consumo das filas de eventos"
+        document = templatefile("${path.module}/iam_templates/policies/lambda_sqs_consumer_policy.tftpl", {
+          queue_arns = jsonencode(local.consumer_queue_arns[each.key])
+        })
+      }
+    ] : []
+  )
 
   tags = local.tags
 }
