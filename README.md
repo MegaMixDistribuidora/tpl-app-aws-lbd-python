@@ -38,7 +38,16 @@ próprio arquivo. Ordem sugerida:
    (`audit_leading_keys` em `terraform-aws/iam.tf`, ADR-16); se ela precisar de slug/SKU únicos, veja o
    padrão de itens-ponteiro em
    `aws-megamix-app-lbd-catalog-service/docs/superpowers/specs`.
-5. **Contas AWS** — `terraform-aws/environments/dev.tfvars` e `prod.tfvars`.
+5. **API interna e eventos consumidos** — `src/service_template/audience.py`
+   (distingue loja, portal e API interna pelos ids `STORE_API_ID`,
+   `ADMIN_API_ID` e `INTERNAL_API_ID`) e `src/service_template/internal_api.py`
+   (cliente SigV4 da API interna, usa `INTERNAL_API_ENDPOINT`); em
+   `terraform-aws/internal_api.tf`, `internal_routes` (rotas internas que o
+   serviço expõe, `AWS_IAM`) e `internal_api_calls` (rotas de outros serviços
+   que ele chama, gera o `execute-api:Invoke`); em
+   `terraform-aws/event_consumers.tf`, `event_consumers` (regra → fila SQS com
+   DLQ e alarme → função). Os três mapas começam vazios.
+6. **Contas AWS** — `terraform-aws/environments/dev.tfvars` e `prod.tfvars`.
 
 Nenhuma dessas convenções é repetida aqui além do necessário para orientar a
 adoção — a fonte é sempre `docs/arquitetura.md` e `docs/prd.md` do workspace

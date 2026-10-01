@@ -43,6 +43,10 @@ resource "aws_lambda_function" "function" {
       POWERTOOLS_SERVICE_NAME      = local.service
       POWERTOOLS_METRICS_NAMESPACE = "MegaMix"
       LOG_LEVEL                    = "INFO"
+      STORE_API_ID                 = data.aws_ssm_parameter.store_api_id.insecure_value
+      ADMIN_API_ID                 = local.api_id
+      INTERNAL_API_ID              = data.aws_ssm_parameter.internal_api_id.insecure_value
+      INTERNAL_API_ENDPOINT        = data.aws_ssm_parameter.internal_api_endpoint.insecure_value
     }
   }
 
